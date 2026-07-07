@@ -69,6 +69,7 @@ class _BackgroundSlot extends StatelessWidget {
 }
 
 /// Scrolling monospace log panel used by every module's terminal output.
+/// Scrolling monospace log panel used by every module's terminal output.
 class TerminalLog extends StatelessWidget {
   final List<String> lines;
   final ScrollController controller;
@@ -78,7 +79,8 @@ class TerminalLog extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      decoration: hudPanelDecoration(borderColor: AppColors.glitchGrey, glow: 0.1),
+      // 🟢 FIXED: Swapped 'glow' for 'opacity' and 'glitchOffset'
+      decoration: hudPanelDecoration(borderColor: AppColors.glitchGrey, opacity: 0.3, glitchOffset: 1.0),
       padding: const EdgeInsets.all(10),
       child: ListView.builder(
         controller: controller,

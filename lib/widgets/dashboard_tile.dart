@@ -11,27 +11,30 @@ class DashboardTile extends StatelessWidget {
     super.key,
     required this.label,
     required this.icon,
+    required this.accent,
     required this.onTap,
-    this.accent = AppColors.cyan,
   });
 
   @override
   Widget build(BuildContext context) {
-    return InkWell(
+    return GestureDetector(
       onTap: onTap,
       child: Container(
-        decoration: hudPanelDecoration(borderColor: accent, glow: 0.25),
-        padding: const EdgeInsets.symmetric(vertical: 20, horizontal: 8),
+        // 🟢 FIXED: utilizing the new procedural asymmetric borders
+        decoration: hudPanelDecoration(borderColor: accent, opacity: 0.7, glitchOffset: 2.0),
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Icon(icon, color: accent, size: 30),
-            const SizedBox(height: 10),
-            Text(
-              label.toUpperCase(),
-              textAlign: TextAlign.center,
-              style: AppText.label.copyWith(color: accent),
+            Icon(
+              icon, 
+              color: accent, 
+              size: 38,
+              shadows: [
+                Shadow(color: accent.withOpacity(0.8), blurRadius: 10),
+              ]
             ),
+            const SizedBox(height: 14),
+            Text(label.toUpperCase(), style: AppText.label.copyWith(color: accent)),
           ],
         ),
       ),
