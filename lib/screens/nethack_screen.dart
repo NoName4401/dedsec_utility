@@ -191,7 +191,7 @@ class _NetHackScreenState extends State<NetHackScreen> {
       child: SingleChildScrollView(
         child: Container(
           padding: const EdgeInsets.all(16),
-          decoration: hudPanelDecoration(borderColor: AppColors.cyan, glow: 0.15),
+          decoration: hudPanelDecoration(borderColor: AppColors.hazard, opacity: 0.15, glitchOffset: 1.0),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [

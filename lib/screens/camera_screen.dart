@@ -116,7 +116,7 @@ class _CameraScreenState extends State<CameraScreen> {
             Container(
               height: 220,
               width: double.infinity,
-              decoration: hudPanelDecoration(borderColor: AppColors.hazard, glow: 0.15),
+              decoration: hudPanelDecoration(borderColor: AppColors.hazard, opacity: 0.15, glitchOffset: 1.0),
               clipBehavior: Clip.antiAlias,
               child: _initialized && _vlcController != null
                   ? VlcPlayer(

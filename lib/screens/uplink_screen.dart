@@ -139,7 +139,7 @@ class _UplinkScreenState extends State<UplinkScreen> {
                       Expanded(
                         child: Container(
                           padding: const EdgeInsets.all(12),
-                          decoration: hudPanelDecoration(borderColor: AppColors.hazard, glow: 0.15),
+                          decoration: hudPanelDecoration(borderColor: AppColors.hazard, opacity: 0.15, glitchOffset: 1.0),
                           child: SingleChildScrollView(
                             child: Column(
                               crossAxisAlignment: CrossAxisAlignment.start,

@@ -218,7 +218,7 @@ class _ToolkitScreenState extends State<ToolkitScreen> {
                     flex: 5,
                     child: _selectedCommand == null
                         ? Container(
-                      decoration: hudPanelDecoration(borderColor: AppColors.glitchGrey, glow: 0),
+                      decoration: hudPanelDecoration(borderColor: AppColors.hazard, opacity: 0.15, glitchOffset: 1.0),
                       child: Center(
                         child: Text(
                           'AWAITING_SELECTION\n[LOAD ARCHITECTURE]',
@@ -229,7 +229,7 @@ class _ToolkitScreenState extends State<ToolkitScreen> {
                     )
                         : Container(
                       padding: const EdgeInsets.all(14),
-                      decoration: hudPanelDecoration(borderColor: AppColors.cyan, glow: 0.15),
+                      decoration: hudPanelDecoration(borderColor: AppColors.hazard, opacity: 0.15, glitchOffset: 1.0),
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [

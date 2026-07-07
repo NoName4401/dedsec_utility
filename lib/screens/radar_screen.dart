@@ -152,7 +152,8 @@ class _RadarScreenState extends State<RadarScreen> {
                       padding: const EdgeInsets.all(12),
                       decoration: hudPanelDecoration(
                           borderColor: isSelected ? AppColors.hazard : AppColors.warningYellow,
-                          glow: isSelected ? 0.25 : 0.05
+                          opacity: isSelected ? 0.35 : 0.10,
+                          glitchOffset: isSelected ? 3.0 : 1.0,
                       ),
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
