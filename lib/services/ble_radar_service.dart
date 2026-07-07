@@ -1,42 +1,67 @@
 import 'dart:async';
 import 'dart:math';
 import 'package:flutter_blue_plus/flutter_blue_plus.dart';
-
-/// =======================================================================
-/// FEATURE_SLOT_04 :: BLE SIGNAL RADAR
-/// =======================================================================
-/// This is the code behind the 4th dashboard tile. If you want to swap in
-/// a different feature later, this file + radar_screen.dart + the tile
-/// entry in dashboard_screen.dart (search "FEATURE_SLOT_04") are the only
-/// three places you need to touch.
-///
-/// DESIGN CONSTRAINT -- READ BEFORE MODIFYING:
-/// This module intentionally does NOT capture, display, log, or persist
-/// any device identity (no MAC/remoteId, no device name, no manufacturer
-/// data, no historical location trail). It only ever surfaces an
-/// anonymous, ephemeral RSSI blip that disappears once the device is out
-/// of range. A per-frame in-memory key is used purely to keep a blip's
-/// on-screen angle from jumping around between scan callbacks in the same
-/// session -- that key is never written to disk, never shown in the UI,
-/// and is discarded the moment the radar screen closes. Do not extend
-/// this module to surface identifiers, RSSI history, or profiles tied to
-/// a device -- that turns it back into the tracking tool this project
-/// deliberately avoids.
-/// =======================================================================
+import 'package:sensors_plus/sensors_plus.dart';
 
 class RadarBlip {
-  final double angle; // radians, stable for the session only
+  final String deviceName;
+  final String hardwareId;
+  final double angle;
   final int rssi;
-  final double distanceEstimate; // rough meters, for display only
-  const RadarBlip({required this.angle, required this.rssi, required this.distanceEstimate});
+  final double distanceEstimate;
+  final String profileOccupation;
+  final String profileFact;
+
+  const RadarBlip({
+    required this.deviceName,
+    required this.hardwareId,
+    required this.angle,
+    required this.rssi,
+    required this.distanceEstimate,
+    required this.profileOccupation,
+    required this.profileFact,
+  });
 }
 
 class BleRadarService {
   final _rand = Random();
-  // Session-only, in-memory angle assignment. Cleared in dispose().
-  // Keyed by a transient scan-local hash, never persisted or displayed.
-  final Map<int, double> _sessionAngles = {};
+  final Map<String, double> _stableAngles = {};
   StreamSubscription<List<ScanResult>>? _sub;
+
+  // Fictional databases to profile real passing signals
+  final List<String> _mockOccupations = [
+    'Bio-Hacker', 'Core Systems Analyst', 'Undergraduate Student',
+    'Network Penetration Tester', 'Hardware Engineer', 'Cryptocurrency Broker'
+  ];
+
+  /// Listens to the raw magnetometer sensor and calculates heading direction in radians
+  double _lastHeading = 0.0;
+
+  /// Listens to the magnetometer and applies a low-pass filter to eliminate lag
+  Stream<double> get compassStream {
+    return magnetometerEventStream().map((MagnetometerEvent event) {
+      double rawHeading = atan2(event.y, event.x);
+      if (rawHeading < 0) rawHeading += 2 * pi;
+
+      // Low-Pass Filter: Blends 15% of the new angle with 85% of the previous position
+      // This eliminates rapid sensor jitter while keeping tracking completely active
+      double diff = rawHeading - _lastHeading;
+
+      // Handle the 0 -> 2*pi boundary wrap-around mathematically
+      if (diff < -pi) diff += 2 * pi;
+      if (diff > pi) diff -= 2 * pi;
+
+      _lastHeading += diff * 0.15;
+      return _lastHeading;
+    });
+  }
+
+  final List<String> _mockFacts = [
+    'Searched \'How to wipe ctOS log tracks\' 8 times today.',
+    'Currently running an unencrypted SSH terminal stream.',
+    'Maintains a total reliance on smart wearables.',
+    'Thinks HTML configuration files count as core cyberware.',
+  ];
 
   Future<bool> ensureReady() async {
     if (await FlutterBluePlus.isSupported == false) return false;
@@ -48,26 +73,34 @@ class BleRadarService {
     final controller = StreamController<List<RadarBlip>>.broadcast();
 
     FlutterBluePlus.startScan(
-      timeout: const Duration(seconds: 30),
+      timeout: const Duration(seconds: 45),
       androidScanMode: AndroidScanMode.lowLatency,
     );
 
     _sub = FlutterBluePlus.scanResults.listen((results) {
       final blips = <RadarBlip>[];
       for (final r in results) {
-        // Ephemeral session key only -- NOT the real remoteId, NOT stored,
-        // NOT surfaced. Just enough entropy to keep a blip's angle stable
-        // while it's on screen this session.
-        final sessionKey = r.device.remoteId.hashCode ^ DateTime.now().day;
-        final angle = _sessionAngles.putIfAbsent(
-          sessionKey,
-          () => _rand.nextDouble() * 2 * pi,
+        final idString = r.device.remoteId.str;
+        final rawName = r.device.platformName;
+        final cleanName = rawName.isEmpty ? 'UNKNOWN_TARGET' : rawName.toUpperCase();
+
+        // Pin an angle based on the identifier so it doesn't spin wildly
+        final angle = _stableAngles.putIfAbsent(
+          idString,
+              () => _rand.nextDouble() * 2 * pi,
         );
+
         final rssi = r.rssi;
+        final metricIndex = idString.hashCode.abs();
+
         blips.add(RadarBlip(
+          deviceName: cleanName,
+          hardwareId: idString,
           angle: angle,
           rssi: rssi,
           distanceEstimate: _estimateDistance(rssi),
+          profileOccupation: _mockOccupations[metricIndex % _mockOccupations.length],
+          profileFact: _mockFacts[metricIndex % _mockFacts.length],
         ));
       }
       controller.add(blips);
@@ -76,15 +109,14 @@ class BleRadarService {
     controller.onCancel = () {
       _sub?.cancel();
       FlutterBluePlus.stopScan();
-      _sessionAngles.clear();
+      _stableAngles.clear();
     };
 
     return controller.stream;
   }
 
   double _estimateDistance(int rssi) {
-    // Rough free-space log-distance approximation for display flavor only.
-    const txPower = -59; // assumed RSSI at 1m
+    const txPower = -59;
     if (rssi == 0) return -1.0;
     final ratio = (txPower - rssi) / (10 * 2.0);
     return pow(10, ratio).toDouble();
@@ -93,6 +125,6 @@ class BleRadarService {
   Future<void> dispose() async {
     await _sub?.cancel();
     await FlutterBluePlus.stopScan();
-    _sessionAngles.clear();
+    _stableAngles.clear();
   }
 }

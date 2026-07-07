@@ -1,11 +1,12 @@
 import 'package:flutter/material.dart';
 import '../theme/app_theme.dart';
 import '../services/battery_service.dart';
-import '../widgets/battery_node_row.dart';
+import '../widgets/battery_node_circle.dart'; // IMPORT NEW CIRCULAR WIDGET
 import '../widgets/dashboard_tile.dart';
 import 'nethack_screen.dart';
 import 'radar_screen.dart';
 import 'uplink_screen.dart';
+import 'toolkit_screen.dart';
 
 class DashboardScreen extends StatefulWidget {
   const DashboardScreen({super.key});
@@ -16,13 +17,13 @@ class DashboardScreen extends StatefulWidget {
 
 class _DashboardScreenState extends State<DashboardScreen> {
   final _batteryService = BatteryService();
-  int _nodes = 0;
+  double _batteryPercentage = 1.0; // Range 0.0 - 1.0
 
   @override
   void initState() {
     super.initState();
-    _batteryService.nodeLevelStream().listen((n) {
-      if (mounted) setState(() => _nodes = n);
+    _batteryService.batteryLevelStream().listen((pct) {
+      if (mounted) setState(() => _batteryPercentage = pct);
     });
   }
 
@@ -33,11 +34,11 @@ class _DashboardScreenState extends State<DashboardScreen> {
       body: Stack(
         fit: StackFit.expand,
         children: [
-          // PLACEHOLDER SLOT: drop assets/images/dashboard_bg.png to skin
-          // the dashboard with your own art. See AppAssets + README.
+          // Updated default skin binding
           Image.asset(
             AppAssets.dashboardBackground,
             fit: BoxFit.cover,
+            // Fallback to pure background if the asset image isn't found
             errorBuilder: (_, __, ___) => Container(color: AppColors.background),
           ),
           SafeArea(
@@ -45,12 +46,22 @@ class _DashboardScreenState extends State<DashboardScreen> {
               padding: const EdgeInsets.all(20),
               child: Column(
                 children: [
-                  Text('PROJECT_MARCUS // HOME_TERMINAL', style: AppText.title),
-                  const SizedBox(height: 24),
-                  BatteryNodeRow(litNodes: _nodes),
-                  const SizedBox(height: 6),
+                  Text('DedSec // HOME_TERMINAL', style: AppText.title),
+                  const SizedBox(height: 12),
+
+                  // =============================================
+                  // NEW CIRCULAR BOTNET INDICATOR SOCKET
+                  // =============================================
+                  SizedBox(
+                    height: 140,
+                    child: BatteryNodeCircle(percentage: _batteryPercentage),
+                  ),
+
+                  const SizedBox(height: 10),
                   Text('BOTNET_POWER_ARRAY', style: AppText.dim),
-                  const SizedBox(height: 40),
+                  const SizedBox(height: 30),
+
+                  // Grid View layout remains unchanged
                   Expanded(
                     child: GridView.count(
                       crossAxisCount: 2,
@@ -64,13 +75,6 @@ class _DashboardScreenState extends State<DashboardScreen> {
                           onTap: () => Navigator.push(context,
                               MaterialPageRoute(builder: (_) => const NetHackScreen())),
                         ),
-                        // ---------------------------------------------
-                        // FEATURE_SLOT_04 -- swap this tile to change
-                        // what the 4th app launches. Currently wired to
-                        // the BLE signal radar (RadarScreen). See
-                        // services/ble_radar_service.dart for the design
-                        // constraints before extending it.
-                        // ---------------------------------------------
                         DashboardTile(
                           label: 'Radar',
                           icon: Icons.sensors,
@@ -86,10 +90,11 @@ class _DashboardScreenState extends State<DashboardScreen> {
                               MaterialPageRoute(builder: (_) => const UplinkScreen())),
                         ),
                         DashboardTile(
-                          label: 'System',
+                          label: 'Toolkit',
                           icon: Icons.terminal,
-                          accent: AppColors.glitchGrey,
-                          onTap: () {},
+                          accent: AppColors.cyan,
+                          onTap: () => Navigator.push(context,
+                              MaterialPageRoute(builder: (_) => const ToolkitScreen())),
                         ),
                       ],
                     ),

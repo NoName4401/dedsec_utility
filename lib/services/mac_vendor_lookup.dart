@@ -1,32 +1,89 @@
-/// Small static OUI prefix -> vendor lookup table.
-/// Not exhaustive -- extend as needed. Prefixes are the first 3 octets
-/// of a MAC address, uppercase, colon-separated.
 class MacVendorLookup {
   static const Map<String, String> _table = {
-    'F4:F5:D8': 'GOOGLE_DEVICE',
-    '3C:5A:B4': 'GOOGLE_DEVICE',
+    // === APPLE WIRELESS INFRASTRUCTURE ===
+    '00:0D:93': 'APPLE_COMPUTING',
+    '00:1E:C2': 'APPLE_IPHONE',
+    '18:AF:61': 'APPLE_DEVICE',
+    '34:A3:95': 'APPLE_DEVICE',
+    '44:D8:84': 'APPLE_MACBOOK',
+    '7C:11:BE': 'APPLE_DEVICE',
     'A4:83:E7': 'APPLE_DEVICE',
-    'F0:18:98': 'APPLE_DEVICE',
+    'F0:18:98': 'APPLE_ECOSYSTEM',
     'AC:BC:32': 'APPLE_DEVICE',
+    'FC:FC:48': 'APPLE_DEVICE',
+
+    // === GOOGLE & NEST SYSTEMS ===
     '00:1A:11': 'GOOGLE_DEVICE',
-    '00:04:20': 'SLIM_DEVICES',
-    '00:22:65': 'ROKU_DEVICE',
-    'B8:27:EB': 'RASPBERRY_PI',
-    'DC:A6:32': 'RASPBERRY_PI',
-    '00:1D:C9': 'SONY_PLAYSTATION',
-    '00:19:C5': 'SONY_PLAYSTATION',
-    '7C:ED:8D': 'SONY_PLAYSTATION',
-    '00:17:AB': 'MICROSOFT_XBOX',
-    '00:50:F2': 'MICROSOFT_DEVICE',
-    '00:0D:93': 'APPLE_DEVICE',
+    '3C:5A:B4': 'GOOGLE_NEST',
+    'D8:24:BD': 'GOOGLE_CHROMECAST',
+    'F4:F5:D8': 'GOOGLE_PIXEL',
     '18:B4:30': 'NEST_SMART_APPLIANCE',
-    'D0:52:A8': 'SMART_APPLIANCE',
+
+    // === SAMSUNG ENTERTAINMENT & MOBILE ===
+    '1C:5A:3E': 'SAMSUNG_GALAXY',
+    '44:4A:DB': 'SAMSUNG_SMART_TV',
     '64:16:66': 'SAMSUNG_DEVICE',
     '8C:79:F5': 'SAMSUNG_DEVICE',
-    'E8:50:8B': 'SAMSUNG_DEVICE',
-    'FC:A1:83': 'AMAZON_ECHO',
-    '68:37:E9': 'AMAZON_ECHO',
-    '44:65:0D': 'AMAZON_DEVICE',
+    'A8:06:00': 'SAMSUNG_DEVICE',
+    'E8:50:8B': 'SAMSUNG_APPLIANCE',
+
+    // === AMAZON ECOSYSTEM ===
+    '44:65:0D': 'AMAZON_KINDLE',
+    '68:37:E9': 'AMAZON_ECHO_DOT',
+    '74:C2:46': 'AMAZON_FIRE_TV',
+    'FC:A1:83': 'AMAZON_DEVICE',
+
+    // === GAMING INFRASTRUCTURE ===
+    '00:13:5F': 'NINTENDO_WII',
+    '00:1F:32': 'NINTENDO_DS',
+    '98:B6:E9': 'NINTENDO_SWITCH',
+    'E0:E7:51': 'NINTENDO_SWITCH',
+    '00:19:C5': 'SONY_PLAYSTATION',
+    '00:1D:C9': 'SONY_PLAYSTATION',
+    '7C:ED:8D': 'SONY_PS5_CONSOLE',
+    'FC:0F:E6': 'SONY_INTERACTIVE',
+    '00:17:AB': 'MICROSOFT_XBOX',
+    '28:18:78': 'MICROSOFT_XBOX_ONE',
+
+    // === CORE NETWORKING & ROUTERS (THE GATEWAYS) ===
+    '00:14:BF': 'CISCO_SYSTEMS',
+    '00:2A:6A': 'CISCO_SYSTEMS',
+    '00:1F:A4': 'NETGEAR_ROUTER',
+    '20:4E:7F': 'NETGEAR_DEVICE',
+    '84:16:F9': 'NETGEAR_ORBI',
+    '00:24:01': 'D-LINK_SYSTEMS',
+    '14:CC:20': 'TP-LINK_ROUTER',
+    '50:C7:BF': 'TP-LINK_SMART_PLUG',
+    '70:4F:57': 'LINKSYS_ROUTER',
+    'EC:1A:59': 'EERO_MESH_NODE',
+    '78:8A:20': 'UBIQUITI_UNI-FI',
+
+    // === MOBILE HARDWARE (ONEPLUS, MOTOROLA, XIAOMI, HUAWEI) ===
+    '00:E0:FC': 'HUAWEI_DEVICE',
+    '20:82:C0': 'HUAWEI_MOBILE',
+    '1C:52:16': 'ONEPLUS_TECH',
+    '74:A7:22': 'XIAOMI_PHONE',
+    'D4:F5:13': 'XIAOMI_ECOSYSTEM',
+    '00:22:A2': 'MOTOROLA_MOBILITY',
+
+    // === PC INTERFACE CARDS & PROCESSORS (INTEL, REALTEK, AMD) ===
+    '00:1F:3B': 'INTEL_WIRELESS_CARD',
+    '4C:ED:FB': 'INTEL_PRO_WIRELESS',
+    'A0:C5:89': 'INTEL_AX210_CHIP',
+    '00:E0:4C': 'REALTEK_ETHERNET',
+    'B8:27:EB': 'RASPBERRY_PI_3',
+    'DC:A6:32': 'RASPBERRY_PI_4',
+
+    // === SMART HOME, AUDIO, & TELEVISION ===
+    '00:22:65': 'ROKU_STREAMING',
+    'AC:3A:7A': 'ROKU_TV',
+    '00:04:20': 'LOGITECH_SLIM_DEVICES',
+    '00:11:6B': 'IOMEGA_STORAGE',
+    '00:23:DF': 'SONOS_AUDIO_NODE',
+    '54:2A:1B': 'SONOS_SPEAKER',
+    'D0:52:A8': 'SMART_APPLIANCE_HUB',
+    'B4:79:A7': 'LG_ELECTRONICS_TV',
+    '70:B3:D5': 'VRE_IOT_GATEWAY',
   };
 
   static String lookup(String? mac) {

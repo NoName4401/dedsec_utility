@@ -1,27 +1,14 @@
 import 'dart:async';
 import 'package:battery_plus/battery_plus.dart';
 
-/// CORE_MODULE_01 - "BOTNET" BATTERY SYNC
-/// Maps the real hardware battery level to a 0-10 node index.
 class BatteryService {
-  final Battery _battery = Battery();
+  final _battery = Battery();
 
-  Stream<int> nodeLevelStream() async* {
-    final level = await _battery.batteryLevel;
-    yield _toNodes(level);
-    yield* _battery.onBatteryStateChanged.asyncMap((_) async {
-      final lvl = await _battery.batteryLevel;
-      return _toNodes(lvl);
+  /// Streams the phone's true physical hardware battery percentage (0.0 to 1.0)
+  Stream<double> batteryLevelStream() {
+    return Stream.periodic(const Duration(seconds: 2)).asyncMap((_) async {
+      final level = await _battery.batteryLevel;
+      return level / 100.0; // Converts integer percent (e.g. 84) to double fraction (0.84)
     });
-  }
-
-  Future<int> currentNodes() async {
-    final level = await _battery.batteryLevel;
-    return _toNodes(level);
-  }
-
-  int _toNodes(int percent) {
-    // 0-100% -> 0-10 nodes, rounded to nearest node.
-    return (percent / 10).round().clamp(0, 10);
   }
 }

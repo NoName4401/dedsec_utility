@@ -10,6 +10,8 @@ dependencies:
   flutter:
     sdk: flutter
   battery_plus: ^6.1.0        # hardware battery status
+  sensors_plus: ^6.1.0  # Captures real-time device orientation and heading
+  flutter_vlc_player: ^7.4.1  # Core network stream decoding engine
   network_info_plus: ^6.1.0   # local wifi/IP interface info
   lan_scanner: ^3.1.0         # async subnet ping sweep
   flutter_blue_plus: ^1.34.0  # BLE RSSI radar scanning

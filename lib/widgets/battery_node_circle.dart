@@ -10,7 +10,6 @@ class BatteryNodeCircle extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    // Isolated behind RepaintBoundary to lock the complex graphic from redraws
     return RepaintBoundary(
       child: Center(
         child: Stack(
@@ -22,16 +21,23 @@ class BatteryNodeCircle extends StatelessWidget {
             Container(
               width: 70,
               height: 70,
-              decoration: hudPanelDecoration(borderColor: AppColors.cyan, glow: 0.25).copyWith(
+              decoration: BoxDecoration(
                 shape: BoxShape.circle,
-                color: AppColors.background, // Pure core separation
+                color: AppColors.background,
+                border: Border.all(color: AppColors.cyan, width: 1.5),
+                boxShadow: [
+                  BoxShadow(
+                    color: AppColors.cyan.withOpacity(0.25),
+                    blurRadius: 10,
+                    spreadRadius: 1,
+                  ),
+                ],
               ),
               child: Center(
                 child: Icon(
                   Icons.flash_on,
                   color: AppColors.cyan,
                   size: 38,
-                  // Custom glow effect for the icon itself
                   shadows: [
                     Shadow(
                       color: AppColors.cyan.withOpacity(0.9),
@@ -43,10 +49,10 @@ class BatteryNodeCircle extends StatelessWidget {
             ),
 
             // =============================================
-            // OUTER ARC RINGS (SEGMENTED)
+            // HIGH-PRECISION SEGMENTED OUT ARCS
             // =============================================
             CustomPaint(
-              size: const Size(120, 120), // Target viewport size
+              size: const Size(110, 110), // Tightened viewport dimension
               painter: _BotnetArcPainter(percentage: percentage),
             ),
           ],
@@ -65,12 +71,12 @@ class _BotnetArcPainter extends CustomPainter {
   void paint(Canvas canvas, Size size) {
     final center = size.center(Offset.zero);
     final maxRadius = size.width / 2;
-    const double thickness = 14.0;
-    const int segmentsPerArc = 12; // Matching reference geometry
+    const double thickness = 10.0; // Sharp, aggressive profile thickness
+    const int totalSegmentsPerSide = 12; // 12 on left, 12 on right
 
-    // Baseline Paint Styles
+    // Paint Styles
     final emptyPaint = Paint()
-      ..color = AppColors.glitchGrey.withOpacity(0.5)
+      ..color = AppColors.glitchGrey.withOpacity(0.25)
       ..style = PaintingStyle.stroke
       ..strokeWidth = thickness;
 
@@ -79,52 +85,47 @@ class _BotnetArcPainter extends CustomPainter {
       ..style = PaintingStyle.stroke
       ..strokeWidth = thickness;
 
-    // Outer framing arc limits (0 - 2*pi)
-    const double arcGap = (2 * pi / 30); // Visual separation between left/right arcs
+    final Rect arcBounds = Rect.fromCircle(center: center, radius: maxRadius);
+
+    // Angular Constants (in Radians)
+    const double totalHalfArcAngle = pi - (pi / 8); // Leaves a distinct top and bottom gap
+    final double segmentAngle = totalHalfArcAngle / totalSegmentsPerSide;
+    const double gapAngle = 0.045; // Clean, uniform gap spacing between segments
+    final double activeDrawAngle = segmentAngle - gapAngle;
 
     // =============================================
-    // LEFT ARC (REAL BATTERY %): TRACKS PERCENTAGE
+    // DRAW LEFT ARC (REAL BATTERY % PROGRESS DECK)
     // =============================================
-    final leftStart = -pi - (pi / 2) + (arcGap / 2); // Rotated to top-center
-    final leftSweep = (pi - arcGap);
+    // Calculates how many of the 12 left segments should turn cyan
+    final int litSegmentsOnLeft = (totalSegmentsPerSide * percentage).round();
 
-    // Draw base (gray)
-    canvas.drawArc(Rect.fromCircle(center: center, radius: maxRadius), leftStart, leftSweep, false, emptyPaint);
+    for (int i = 0; i < totalSegmentsPerSide; i++) {
+      // Calculate starting coordinate position for each individual chunk (growing down from top)
+      final double startAngle = -pi / 2 - (i * segmentAngle) - segmentAngle + (gapAngle / 2);
+      final bool isLit = i < litSegmentsOnLeft;
 
-    // Draw filled (cyan) portion based on percentage
-    canvas.drawArc(Rect.fromCircle(center: center, radius: maxRadius), leftStart, leftSweep * percentage, false, filledPaint);
+      canvas.drawArc(
+        arcBounds,
+        startAngle,
+        activeDrawAngle,
+        false,
+        isLit ? filledPaint : emptyPaint,
+      );
+    }
 
     // =============================================
-    // RIGHT ARC (BOTNET LOAD): STATIC FULLY LIT
+    // DRAW RIGHT ARC (BOTNET LOAD - FULLY ILLUMINATED)
     // =============================================
-    final rightStart = -pi / 2 + (arcGap / 2);
-    final rightSweep = (pi - arcGap);
+    for (int i = 0; i < totalSegmentsPerSide; i++) {
+      // Mirror math tracing down the right side from top-center
+      final double startAngle = -pi / 2 + (i * segmentAngle) + (gapAngle / 2);
 
-    // Right arc remains completely illuminated as a tactical decor element
-    canvas.drawArc(Rect.fromCircle(center: center, radius: maxRadius), rightStart, rightSweep, false, filledPaint);
-
-    // =============================================
-    // SEGMENTATION (CUTOUTS): RENDERED ON TOP
-    // =============================================
-    // This painter uncouples the segments into physical notches
-    final cutoutPaint = Paint()
-      ..color = AppColors.background.withOpacity(0.85) // Blends with HUD background
-      ..style = PaintingStyle.stroke
-      ..strokeWidth = 2.5;
-
-    final totalRotation = (2 * pi / segmentsPerArc);
-
-    for (int i = 0; i < segmentsPerArc * 2; i++) {
-      final angle = (i * totalRotation);
-
-      final dx = center.dx + maxRadius * cos(angle);
-      final dy = center.dy + maxRadius * sin(angle);
-
-      // Simple lines drawn to look like physical segments/notches
-      canvas.drawLine(
-          Offset(dx - (thickness / 2 + 1), dy - (thickness / 2 + 1)),
-          Offset(dx + (thickness / 2 + 1), dy + (thickness / 2 + 1)),
-          cutoutPaint
+      canvas.drawArc(
+        arcBounds,
+        startAngle,
+        activeDrawAngle,
+        false,
+        filledPaint, // Keeping right side fully powered up for HUD balance
       );
     }
   }
