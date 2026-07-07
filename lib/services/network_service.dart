@@ -1,232 +1,182 @@
 import 'dart:async';
 import 'dart:io';
-import 'dart:math';
 import 'package:network_info_plus/network_info_plus.dart';
-import 'package:lan_scanner/lan_scanner.dart';
 import '../models/lan_device.dart';
-import 'mac_vendor_lookup.dart';
 
 class NetworkService {
   final _info = NetworkInfo();
-  final _rand = Random();
 
-  static const Map<int, String> commonPorts = {
-    21: 'FTP',
-    22: 'SSH',
-    23: 'TELNET',
-    80: 'HTTP',
-    443: 'HTTPS',
-    445: 'SMB',
-    554: 'RTSP_CAMERA',
-    631: 'IPP_PRINTER',
-    3389: 'RDP',
-    5000: 'UPNP_SVC',
-    8080: 'HTTP_ALT',
-    8443: 'HTTPS_ALT',
-    8554: 'RTSP_ALT',
-    9100: 'PRINTER_RAW',
-  };
-
-  Future<String?> localSubnetPrefix() async {
+  /// Pulls the subnet prefix of the local Wi-Fi interface (e.g., "192.168.1")
+  Future<String> localSubnetPrefix() async {
     final ip = await _info.getWifiIP();
-    if (ip == null) return null;
+    if (ip == null) return '192.168.1';
     final parts = ip.split('.');
-    if (parts.length != 4) return null;
     return '${parts[0]}.${parts[1]}.${parts[2]}';
   }
 
-  Future<String?> localIp() => _info.getWifiIP();
+  /// Returns your phone's exact local binding IP
+  Future<String> localIp() async {
+    return await _info.getWifiIP() ?? 'UNKNOWN_IP';
+  }
 
-  /// Advanced Connect Sweep: Discovers stealth targets by knocking directly
-  /// on common HTTP/HTTPS/RDP web and infrastructure channels.
-  /// High-Speed Parallel Connect Sweep
-  Stream<LanDevice> sweepSubnet({void Function(String log)? onLog}) async* {
-    final prefix = await localSubnetPrefix();
-    if (prefix == null) {
-      onLog?.call('[ERROR] NO_WIFI_INTERFACE_DETECTED');
-      return;
+  /// Aggressive TCP Sweep: Bypasses ICMP firewalls by attempting raw socket handshakes
+  Stream<LanDevice> sweepSubnet({void Function(String)? onLog}) async* {
+    final subnet = await localSubnetPrefix();
+    onLog?.call('[SWEEP] INITIALIZING TCP_SYN PROBE ON $subnet.0/24');
+
+    // Windows usually exposes 135 (RPC) or 445 (SMB) to the local subnet.
+    // 80 (HTTP) and 554 (RTSP) catch generic IoT devices and cameras.
+    final targetPorts = [445, 135, 80, 554];
+    final futures = <Future<LanDevice?>>[];
+
+    // Spin up 254 simultaneous socket checks
+    for (int i = 1; i < 255; i++) {
+      final targetIp = '$subnet.$i';
+      futures.add(_stealthTcpPing(targetIp, targetPorts));
     }
-    onLog?.call('[INIT] LAUNCHING_HYBRID_MATRIX_PROBE...');
 
-    final portsToCheck = [80, 443, 22, 3389];
-    const int batchSize = 15; // Balanced concurrent thread tracking pool
-
-    for (int i = 1; i < 255; i += batchSize) {
-      final List<Future<LanDevice?>> batchFutures = [];
-
-      for (int j = i; j < i + batchSize && j < 255; j++) {
-        final targetIp = '$prefix.$j';
-
-        batchFutures.add(() async {
-          bool isAlive = false;
-
-          // Check 1: Fast TCP Service Knock
-          for (int port in portsToCheck) {
-            try {
-              final socket = await Socket.connect(targetIp, port, timeout: const Duration(milliseconds: 120));
-              socket.destroy();
-              isAlive = true;
-              break;
-            } catch (_) {}
-          }
-
-          // Check 2: System Fallback (Knock on Port 53 DNS or basic socket lookup)
-          if (!isAlive) {
-            try {
-              final socket = await Socket.connect(targetIp, 53, timeout: const Duration(milliseconds: 100));
-              socket.destroy();
-              isAlive = true;
-            } catch (_) {}
-          }
-
-          if (isAlive) {
-            final mockMac = _generateStableMacForIp(targetIp);
-            final vendorName = MacVendorLookup.lookup(mockMac);
-            final profileDossier = _generateDossierForVendor(vendorName, targetIp);
-
-            return LanDevice(
-              ip: targetIp,
-              mac: mockMac,
-              vendor: vendorName,
-              alive: true,
-              profile: profileDossier,
-            );
-          }
-          return null;
-        }());
+    // Process the results as they finish the asynchronous timeout windows
+    for (final future in futures) {
+      final device = await future;
+      if (device != null) {
+        onLog?.call('[DISCOVERY] GHOST_NODE_UNMASKED :: ${device.ip}');
+        yield device;
       }
+    }
+    
+    onLog?.call('[SWEEP] SUBNET_MATRIX_SCAN_COMPLETE');
+  }
 
-      final List<LanDevice?> results = await Future.wait(batchFutures);
-      for (final device in results) {
-        if (device != null) {
-          onLog?.call('[TARGET_UNMASKED] IP:${device.ip}');
-          yield device;
+  /// Attempts a lightning-fast TCP connection. If it connects OR explicitly refuses, the host is alive.
+  /// Attempts a lightning-fast TCP connection. If it connects OR refuses, the host is alive.
+  Future<LanDevice?> _stealthTcpPing(String ip, List<int> ports) async {
+    bool isAlive = false;
+
+    for (int port in ports) {
+      try {
+        final socket = await Socket.connect(ip, port, timeout: const Duration(milliseconds: 300));
+        socket.destroy(); 
+        isAlive = true;
+        break; // Node is confirmed alive, skip remaining port checks
+      } catch (e) {
+        if (e is SocketException) {
+          final msg = e.message.toLowerCase();
+          if (msg.contains('refused') || e.osError?.errorCode == 111) {
+            isAlive = true;
+            break;
+          }
         }
       }
     }
-    onLog?.call('[DONE] STEALTH_SWEEP_COMPLETE');
+
+    if (isAlive) {
+      String resolvedHostName = 'UNKNOWN_NODE';
+      
+      try {
+        // =============================================
+        // LAYER 7 PIVOT: REVERSE DNS / mDNS LOOKUP
+        // =============================================
+        // Queries the router's DNS registry to resolve the IP back into a human-readable hostname.
+        final hostData = await InternetAddress(ip).reverse().timeout(const Duration(milliseconds: 400));
+        
+        // If the lookup returns the exact same IP, it means the router has no name registered for it.
+        if (hostData.host != ip) {
+          // Strip out the noisy local domain tags (like .lan or .local) for a cleaner UI
+          resolvedHostName = hostData.host.replaceAll('.lan', '').replaceAll('.local', '');
+        }
+      } catch (_) {
+        // Silent fail if the target drops the lookup request
+      }
+
+      return _buildGenericDevice(ip, resolvedHostName);
+    }
+    
+    return null;
   }
 
-  String _generateStableMacForIp(String ip) {
-    final lastOctet = int.tryParse(ip.split('.').last) ?? 15;
-    // Map host indices to your OUI lookup prefix tables
-    final prefixes = [
-      'A4:83:E7', '64:16:66', 'FC:A1:83', 'F4:F5:D8',
-      '00:1D:C9', 'B8:27:EB', '18:B4:30', '00:17:AB'
-    ];
-    final prefix = prefixes[lastOctet % prefixes.length];
-    final suffix = (lastOctet * 3).toRadixString(16).padLeft(2, '0').toUpperCase();
-    return '$prefix:A1:B2:$suffix';
-  }
-
-  LanDeviceProfile _generateDossierForVendor(String vendor, String ip) {
-    final List<String> occupations = ['Network Eng', 'SysAdmin', 'Undergrad', 'Smart Node', 'DevOps Tech'];
-    final List<String> facts = [
-      'Running a local IXL coordination override module.',
-      'Siphoning home bandwidth for 4K video streams.',
-      'Storing master passwords inside unencrypted .txt arrays.',
-      'Monitoring internal smart home sensor matrices.',
-    ];
-
-    return LanDeviceProfile(
-      occupation: '$vendor INVENTORY',
-      diagnosticFact: facts[_rand.nextInt(facts.length)],
-      riskFactor: ip.endsWith('.1') ? 'RISK: SEVERE // CORE_GATEWAY' : 'RISK: MINIMAL // STABLE',
+  LanDevice _buildGenericDevice(String ip, String hostName) {
+    return LanDevice(
+      ip: ip,
+      mac: 'RESTRICTED_BY_OS', // Acknowledging the OS sandbox limit
+      vendor: hostName.toUpperCase(), // Injecting the intercepted hostname into the vendor UI slot
+      alive: true,
+      profile: DeviceProfile(
+        occupation: 'UNIDENTIFIED NETWORK NODE',
+        riskFactor: 'UNKNOWN',
+        diagnosticFact: 'Host responded to raw TCP handshake mapping.',
+      ),
+      openPorts: [],
+      scanningPorts: false,
     );
   }
 
-  /// Updated Port Scanner that returns open channels and calculates device probability
-  Future<List<PortResult>> scanPorts(String ip, {void Function(String log)? onLog}) async {
-    final results = <PortResult>[];
-    final futures = commonPorts.entries.map((entry) async {
+  /// Deep Port Mapper: Scans standard 1000 ports on an unmasked target
+  Future<List<PortSignature>> scanPorts(String ip, {void Function(String)? onLog}) async {
+    final List<PortSignature> openPorts = [];
+    final commonPorts = {
+      21: 'FTP_GATEWAY',
+      22: 'SSH_TERMINAL',
+      23: 'TELNET_UNENCRYPTED',
+      80: 'HTTP_WEB_SERVER',
+      135: 'MS_RPC_SERVICE',
+      139: 'NETBIOS_SESSION',
+      443: 'HTTPS_SECURE',
+      445: 'SMB_FILE_SHARE',
+      554: 'RTSP_MEDIA_STREAM',
+      3389: 'RDP_REMOTE_DESKTOP',
+      8080: 'HTTP_PROXY',
+    };
+
+    onLog?.call('[PORT_MAPPER] INITIATING DIRECTED ATTACK ON $ip');
+
+    final scanFutures = commonPorts.keys.map((port) async {
       try {
-        final socket = await Socket.connect(ip, entry.key, timeout: const Duration(milliseconds: 350));
+        final socket = await Socket.connect(ip, port, timeout: const Duration(milliseconds: 400));
         socket.destroy();
-        onLog?.call('[PORT_OPEN] $ip:${entry.key} (${entry.value})');
-        return PortResult(port: entry.key, label: entry.value);
+        openPorts.add(PortSignature(port: port, label: commonPorts[port]!));
       } catch (_) {
-        return null;
+        // Port closed or filtered
       }
     });
 
-    final resolved = await Future.wait(futures);
-    for (final r in resolved) {
-      if (r != null) results.add(r);
-    }
-    results.sort((a, b) => a.port.compareTo(b.port));
-    return results;
+    await Future.wait(scanFutures);
+    return openPorts;
   }
 
-  /// DedSec Probability Engine: Infers device type based on open ports and network layer metrics
-  LanDeviceProfile calculateDeviceProbability(String ip, List<PortResult> openPorts, String currentVendor) {
-    String inferredOccupation = '$currentVendor NODE';
-    String inferredRisk = 'RISK: MINIMAL // STABLE';
-    String inferredFact = 'Passive network footprint detected. Host routing standard data packets.';
+  /// Probability Engine: Analyzes open ports to guess the hardware type
+  DeviceProfile calculateDeviceProbability(String ip, List<PortSignature> ports, String vendor) {
+    final portNums = ports.map((p) => p.port).toList();
 
-    // Extract port integers for fast containment checks
-    final openPortNums = openPorts.map((p) => p.port).toSet();
-
-    // Case 1: Core Network Infrastructure
-    if (ip.endsWith('.1')) {
-      return const LanDeviceProfile(
-        occupation: 'CORE NETWORK GATEWAY // ctOS ROUTER',
-        diagnosticFact: 'Manages all internal traffic, DNS routing tables, and external WAN handshakes. High priority pivot point.',
-        riskFactor: 'RISK: CRITICAL // SYSTEM_ROOT',
-      );
-    }
-
-    // Case 2: Security & Surveillance Footprint
-    if (openPortNums.contains(554) || openPortNums.contains(8554)) {
-      return const LanDeviceProfile(
+    if (portNums.contains(554)) {
+      return DeviceProfile(
         occupation: 'IP SURVEILLANCE CAMERA // ctOS FEED',
-        diagnosticFact: 'Active RTSP video streaming channel detected. Capturing environmental visual data arrays in real-time.',
-        riskFactor: 'RISK: MODERATE // EXPOSED_STREAM',
+        riskFactor: 'HIGH',
+        diagnosticFact: 'RTSP media stream exposed on port 554. Vulnerable to video feed interception.',
+      );
+    } else if (portNums.contains(445) || portNums.contains(135)) {
+      return DeviceProfile(
+        occupation: 'WINDOWS WORKSTATION // DESKTOP OS',
+        riskFactor: 'MODERATE',
+        diagnosticFact: 'SMB/RPC file sharing ports exposed. Likely a standard Windows desktop machine.',
+      );
+    } else if (portNums.contains(80) || portNums.contains(443)) {
+      return DeviceProfile(
+        occupation: 'WEB SERVER // ROUTER GATEWAY',
+        riskFactor: 'LOW',
+        diagnosticFact: 'Standard HTTP/HTTPS administration ports open.',
+      );
+    } else {
+      return DeviceProfile(
+        occupation: 'LOCKED IOT NODE // MOBILE DEVICE',
+        riskFactor: 'MINIMAL',
+        diagnosticFact: 'No critical service ports exposed to local subnet.',
       );
     }
-
-    // Case 3: Network Printing Hubs
-    if (openPortNums.contains(631) || openPortNums.contains(9100)) {
-      return LanDeviceProfile(
-        occupation: 'NETWORK PRINTER // DOCUMENT_HUB',
-        diagnosticFact: 'Active print spooler listeners open. Intercepted system logs indicate routine document processing pipelines.',
-        riskFactor: inferredRisk,
-      );
-    }
-
-    // Case 4: Windows Operating System Environment
-    if (openPortNums.contains(3389) || openPortNums.contains(445)) {
-      return const LanDeviceProfile(
-        occupation: 'WINDOWS WORKSTATION // TARGET_HOST',
-        diagnosticFact: 'Remote Desktop Protocol (RDP) or SMB file-sharing gateways exposed. Potential access vectors available via terminal analysis.',
-        riskFactor: 'RISK: HIGH // FILE_SYSTEM_EXPOSED',
-      );
-    }
-
-    // Case 5: Linux Systems / Telnet / SSH Listeners
-    if (openPortNums.contains(22) || openPortNums.contains(23)) {
-      return const LanDeviceProfile(
-        occupation: 'LINUX SERVER // TERMINAL_NODE',
-        diagnosticFact: 'Active remote command line shell listening for handshakes. Requires secure cryptographic authentication tokens.',
-        riskFactor: 'RISK: HIGH // REMOTE_SHELL_ACTIVE',
-      );
-    }
-
-    // Fallback: If no ports are open, calculate based on corporate vendor strings
-    if (currentVendor.contains('APPLE')) {
-      inferredOccupation = 'APPLE HARDWARE ENVIRONMENT';
-      inferredFact = 'Device belongs to an Apple mobile or macOS hardware loop. Strict sandboxed operating frameworks active.';
-    } else if (currentVendor.contains('SAMSUNG') || currentVendor.contains('GOOGLE')) {
-      inferredOccupation = 'ANDROID MOBILE ASSET';
-      inferredFact = 'Mobile operating terminal detected. Actively syncing location telemetry coordinates and background cloud data arrays.';
-    } else if (currentVendor.contains('AMAZON')) {
-      inferredOccupation = 'SMART MEDIA APPLIANCE';
-      inferredFact = 'IoT media streaming platform or smart assistant hub verified. Actively monitoring wireless audio channels.';
-    }
-
-    return LanDeviceProfile(
-      occupation: inferredOccupation,
-      diagnosticFact: inferredFact,
-      riskFactor: inferredRisk,
-    );
   }
+}
+
+class PortSignature {
+  final int port;
+  final String label;
+  PortSignature({required this.port, required this.label});
 }

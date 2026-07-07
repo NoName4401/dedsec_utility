@@ -1,37 +1,37 @@
-class PortResult {
-  final int port;
-  final String label;
-  const PortResult({required this.port, required this.label});
-}
+import '../services/network_service.dart'; // Imports the PortSignature class
 
-class LanDeviceProfile {
+/// Holds the tactical DedSec classification data for an unmasked target
+class DeviceProfile {
   final String occupation;
-  final String diagnosticFact;
   final String riskFactor;
+  final String diagnosticFact;
 
-  const LanDeviceProfile({
+  DeviceProfile({
     required this.occupation,
-    required this.diagnosticFact,
     required this.riskFactor,
+    required this.diagnosticFact,
   });
 }
 
+/// The master network node object representing a physical piece of hardware
 class LanDevice {
   final String ip;
   final String? mac;
   final String vendor;
   final bool alive;
-  final LanDeviceProfile profile; // DedSec Profile Dossier
-  List<PortResult> openPorts;
+  final DeviceProfile profile;
+  
+  // Mutable state variables for the UI scanning actions
+  List<PortSignature> openPorts;
   bool scanningPorts;
 
   LanDevice({
     required this.ip,
     this.mac,
-    this.vendor = 'UNKNOWN_VENDOR',
-    this.alive = true,
+    required this.vendor,
+    required this.alive,
     required this.profile,
-    List<PortResult>? openPorts,
+    this.openPorts = const [],
     this.scanningPorts = false,
-  }) : openPorts = openPorts ?? [];
+  });
 }
