@@ -1,0 +1,21 @@
+<!--
+  iOS Info.plist SNIPPET
+  ======================
+  Merge these keys into ios/Runner/Info.plist (inside the outer <dict>)
+  if you ever build for iOS. Not required for your S26 Ultra sideload,
+  included for completeness.
+-->
+
+<key>NSLocationWhenInUseUsageDescription</key>
+<string>Used to tag local network scans and weather lookups with your position.</string>
+
+<key>NSBluetoothAlwaysUsageDescription</key>
+<string>Used to detect nearby BLE signal strength for the radar module.</string>
+
+<key>NSLocalNetworkUsageDescription</key>
+<string>Used to scan and diagnose devices on your local Wi-Fi network.</string>
+
+<key>NSBonjourServices</key>
+<array>
+  <string>_services._dns-sd._udp</string>
+</array>

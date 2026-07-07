@@ -1,0 +1,34 @@
+<!--
+  ANDROID PERMISSIONS SNIPPET
+  ===========================
+  This is NOT a full AndroidManifest.xml -- it's the block of permissions
+  and metadata you need to merge into the one that `flutter create .`
+  generates for you (see README.md Step 1).
+
+  Paste these <uses-permission> lines directly under the opening
+  <manifest ...> tag, above <application>.
+-->
+
+<uses-permission android:name="android.permission.INTERNET" />
+<uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
+<uses-permission android:name="android.permission.ACCESS_WIFI_STATE" />
+<uses-permission android:name="android.permission.CHANGE_WIFI_MULTICAST_STATE" />
+
+<!-- Location is required by Android to resolve Wi-Fi info and for BLE scanning -->
+<uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" />
+<uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" />
+
+<!-- Bluetooth (Android 12+ uses the new runtime-permission model) -->
+<uses-permission android:name="android.permission.BLUETOOTH" android:maxSdkVersion="30" />
+<uses-permission android:name="android.permission.BLUETOOTH_ADMIN" android:maxSdkVersion="30" />
+<uses-permission android:name="android.permission.BLUETOOTH_SCAN" android:usesPermissionFlags="neverForLocation" tools:targetApi="s" />
+<uses-permission android:name="android.permission.BLUETOOTH_CONNECT" />
+
+<!--
+  If you keep BLUETOOTH_SCAN with neverForLocation, you do NOT get device
+  identity from BLE scans (consistent with the radar module's design --
+  RSSI-only, no identity). Also make sure your root <manifest> tag
+  declares the tools namespace:
+
+    xmlns:tools="http://schemas.android.com/tools"
+-->
