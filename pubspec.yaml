@@ -24,6 +24,7 @@ dev_dependencies:
   flutter_test:
     sdk: flutter
   flutter_lints: ^4.0.0
+  flutter_launcher_icons: ^0.13.1
 
 flutter:
   uses-material-design: true
@@ -31,3 +32,11 @@ flutter:
   # This folder is intentionally left as a placeholder slot -- see README.md.
   assets:
     - assets/images/
+
+
+flutter_icons:
+  android: true
+  ios: true
+  image_path: "assets/images/app_icon.png"
+  adaptive_icon_background: "#000000"
+  adaptive_icon_foreground: "assets/images/app_icon.png"

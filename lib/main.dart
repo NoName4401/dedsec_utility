@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'theme/app_theme.dart';
-import 'screens/dashboard_screen.dart';
+import 'screens/boot_screen.dart'; // Import the new boot screen
 
 void main() {
   runApp(const ProjectMarcusApp());
@@ -11,11 +11,25 @@ class ProjectMarcusApp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    // Inject custom page transitions into your existing theme
+    final baseTheme = buildAppTheme();
+    final hackerTheme = baseTheme.copyWith(
+      pageTransitionsTheme: const PageTransitionsTheme(
+        builders: {
+          // Kills the standard Android swipe-in, replacing it with an instant, fadeless cut
+          // which perfectly mimics old terminal software routing.
+          TargetPlatform.android: FadeUpwardsPageTransitionsBuilder(),
+          TargetPlatform.iOS: FadeUpwardsPageTransitionsBuilder(),
+        },
+      ),
+    );
+
     return MaterialApp(
-      title: 'PROJECT_MARCUS',
+      title: 'DedSec HUD',
       debugShowCheckedModeBanner: false,
-      theme: buildAppTheme(),
-      home: const DashboardScreen(),
+      theme: hackerTheme,
+      // 🟢 Set the home screen to the Boot Sequence instead of the Dashboard
+      home: const BootSequenceScreen(),
     );
   }
 }
