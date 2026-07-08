@@ -7,6 +7,8 @@ import 'nethack_screen.dart';
 import 'radar_screen.dart';
 import 'uplink_screen.dart';
 import 'toolkit_screen.dart';
+import 'wardrive_screen.dart';
+import 'profiler_screen.dart';
 
 class DashboardScreen extends StatefulWidget {
   const DashboardScreen({super.key});
@@ -95,6 +97,20 @@ class _DashboardScreenState extends State<DashboardScreen> {
                           accent: AppColors.cyan,
                           onTap: () => Navigator.push(context,
                               MaterialPageRoute(builder: (_) => const ToolkitScreen())),
+                        ),
+                        DashboardTile(
+                          label: 'Wardrive',
+                          icon: Icons.cell_tower,
+                          accent: AppColors.warningYellow,
+                          onTap: () => Navigator.push(context,
+                              MaterialPageRoute(builder: (_) => const WardriveScreen())),
+                        ),
+                        DashboardTile(
+                          label: 'Profiler',
+                          icon: Icons.person_search,
+                          accent: AppColors.cyan,
+                          onTap: () => Navigator.push(context,
+                              MaterialPageRoute(builder: (_) => const ProfilerScreen())),
                         ),
                       ],
                     ),
