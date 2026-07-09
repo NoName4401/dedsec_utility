@@ -11,6 +11,24 @@ class IdentityScannerService {
 
   /// Comprehensive Sherlock OSINT Platform Database
   /// Over 250+ Target Platforms Mapped
+  static const Map<String, String> quickPlatforms = {
+    'Instagram': 'https://www.instagram.com/{}',
+    'X / Twitter': 'https://x.com/{}',
+    'TikTok': 'https://www.tiktok.com/@{}',
+    'LinkedIn': 'https://www.linkedin.com/in/{}',
+    'YouTube': 'https://www.youtube.com/@{}',
+    'Snapchat': 'https://www.snapchat.com/add/{}',
+    'Reddit': 'https://www.reddit.com/user/{}',
+    'GitHub': 'https://github.com/{}',
+    'Twitch': 'https://www.twitch.tv/{}',
+    'Pinterest': 'https://www.pinterest.com/{}',
+    'Medium': 'https://medium.com/@{}',
+    'Telegram': 'https://t.me/{}',
+    'Tumblr': 'https://{}.tumblr.com/',
+    'Facebook': 'https://www.facebook.com/{}/',
+    'Spotify': 'https://open.spotify.com/user/{}',
+  };
+
   static const Map<String, String> platforms = {
     'GitHub': 'https://github.com/{}',
     'Reddit': 'https://www.reddit.com/user/{}',
@@ -336,6 +354,40 @@ class IdentityScannerService {
     onLog?.call('');
     onLog?.call('// SCAN_COMPLETE :: PROBES=$completed :: HITS=$hits');
     onLog?.call('// TARGET_FINGERPRINT: ${baseUsername.toLowerCase()}');
+
+    await controller.close();
+    yield* controller.stream;
+  }
+
+  Stream<ProfileHit> quickScan({
+    required String baseUsername,
+    void Function(String line)? onLog,
+  }) async* {
+    final controller = StreamController<ProfileHit>();
+    final username = baseUsername.toLowerCase();
+    var hits = 0;
+
+    onLog?.call('// QUICK_QUERY_TARGET: $username');
+    onLog?.call('// PLATFORMS: ${quickPlatforms.length} MAJOR NETWORKS');
+    onLog?.call('');
+
+    for (final entry in quickPlatforms.entries) {
+      final url = entry.value.replaceAll('{}', username);
+      final hit = await _probe(_ProbeTask(
+        platform: entry.key,
+        username: username,
+        url: url,
+      ));
+      if (hit.found) hits++;
+      final tag = hit.found ? '[ HIT ]' : '[ MISS ]';
+      onLog?.call('$tag ${hit.platform} :: HTTP ${hit.statusCode}');
+      controller.add(hit);
+      await Future.delayed(const Duration(milliseconds: 400));
+    }
+
+    onLog?.call('');
+    onLog?.call('// QUERY_COMPLETE :: HITS=$hits / ${quickPlatforms.length}');
+    onLog?.call('// TARGET: $username');
 
     await controller.close();
     yield* controller.stream;

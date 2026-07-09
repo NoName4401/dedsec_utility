@@ -9,6 +9,8 @@ import 'uplink_screen.dart';
 import 'toolkit_screen.dart';
 import 'wardrive_screen.dart';
 import 'profiler_screen.dart';
+import 'override_screen.dart';
+import 'iot_exploit_screen.dart';
 
 class DashboardScreen extends StatefulWidget {
   const DashboardScreen({super.key});
@@ -111,6 +113,20 @@ class _DashboardScreenState extends State<DashboardScreen> {
                           accent: AppColors.cyan,
                           onTap: () => Navigator.push(context,
                               MaterialPageRoute(builder: (_) => const ProfilerScreen())),
+                        ),
+                        DashboardTile(
+                          label: 'Override',
+                          icon: Icons.bluetooth,
+                          accent: AppColors.hazard,
+                          onTap: () => Navigator.push(context,
+                              MaterialPageRoute(builder: (_) => const OverrideScreen())),
+                        ),
+                        DashboardTile(
+                          label: 'IoT Exploit',
+                          icon: Icons.settings_remote,
+                          accent: AppColors.hazard,
+                          onTap: () => Navigator.push(context,
+                              MaterialPageRoute(builder: (_) => const IotExploitScreen())),
                         ),
                       ],
                     ),

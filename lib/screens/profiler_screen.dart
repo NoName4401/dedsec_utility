@@ -18,11 +18,13 @@ class _ProfilerScreenState extends State<ProfilerScreen> {
   final _inputController = TextEditingController();
   final _logLines = <String>[];
   final _logScroll = ScrollController();
+  final _resultsScroll = ScrollController();
   StreamSubscription<ProfileHit>? _scanSub;
   final _hits = <ProfileHit>[];
   final _allResults = <ProfileHit>[];
   bool _scanning = false;
   bool _fuzzMode = false;
+  bool _quickMode = false;
 
   void _log(String line) {
     setState(() => _logLines.add(line));
@@ -42,6 +44,7 @@ class _ProfilerScreenState extends State<ProfilerScreen> {
 
     setState(() {
       _scanning = true;
+      _quickMode = false;
       _logLines.clear();
       _hits.clear();
       _allResults.clear();
@@ -78,6 +81,51 @@ class _ProfilerScreenState extends State<ProfilerScreen> {
     );
   }
 
+  Future<void> _startQuickQuery() async {
+    final username = _inputController.text.trim();
+    if (username.isEmpty) {
+      _log('[!] INPUT_EMPTY :: ENTER A TARGET IDENTITY');
+      return;
+    }
+
+    setState(() {
+      _scanning = true;
+      _quickMode = true;
+      _logLines.clear();
+      _hits.clear();
+      _allResults.clear();
+    });
+
+    _log('// ═══════════════════════════════════════════');
+    _log('//  DEDSEC QUICK_QUERY v1.0');
+    _log('// ═══════════════════════════════════════════');
+    _log('');
+
+    _scanSub = _service.quickScan(
+      baseUsername: username,
+      onLog: _log,
+    ).listen(
+      (hit) {
+        setState(() {
+          _allResults.add(hit);
+          if (hit.found) _hits.add(hit);
+        });
+      },
+      onDone: () {
+        setState(() => _scanning = false);
+        _log('');
+        _log('// QUERY_DOSIER: ${_hits.length} PROFILES ACQUIRED');
+        if (_hits.isNotEmpty) {
+          _log('// ACCESS LINKS AVAILABLE BELOW');
+        }
+      },
+      onError: (e) {
+        _log('[!] QUERY_FAILURE :: $e');
+        setState(() => _scanning = false);
+      },
+    );
+  }
+
   void _stopScan() {
     _scanSub?.cancel();
     _scanSub = null;
@@ -99,6 +147,7 @@ class _ProfilerScreenState extends State<ProfilerScreen> {
     _scanSub?.cancel();
     _inputController.dispose();
     _logScroll.dispose();
+    _resultsScroll.dispose();
     super.dispose();
   }
 
@@ -116,12 +165,27 @@ class _ProfilerScreenState extends State<ProfilerScreen> {
             _buildInputSection(),
             const SizedBox(height: 12),
 
-            // ── EXECUTE BUTTON ──
-            ExecuteButton(
-              label: _scanning ? 'TERMINATE_SCAN' : 'INITIALIZE_PROFILER',
-              color: _scanning ? AppColors.hazard : AppColors.cyan,
-              busy: false,
-              onPressed: _scanning ? _stopScan : _startScan,
+            // ── EXECUTE BUTTONS ──
+            Row(
+              children: [
+                Expanded(
+                  child: ExecuteButton(
+                    label: _scanning ? 'TERMINATE_SCAN' : 'INITIALIZE_PROFILER',
+                    color: _scanning ? AppColors.hazard : AppColors.cyan,
+                    busy: _scanning && !_quickMode,
+                    onPressed: _scanning ? _stopScan : _startScan,
+                  ),
+                ),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: ExecuteButton(
+                    label: _scanning ? 'TERMINATE_SCAN' : 'QUICK_QUERY',
+                    color: _scanning ? AppColors.hazard : AppColors.warningYellow,
+                    busy: _scanning && _quickMode,
+                    onPressed: _scanning ? _stopScan : _startQuickQuery,
+                  ),
+                ),
+              ],
             ),
             const SizedBox(height: 12),
 
@@ -136,7 +200,7 @@ class _ProfilerScreenState extends State<ProfilerScreen> {
               child: _allResults.isEmpty
                   ? _buildEmptyState()
                   : ListView.builder(
-                      controller: _logScroll,
+                      controller: _resultsScroll,
                       itemCount: _allResults.length,
                       itemBuilder: (context, i) {
                         final hit = _allResults[i];
